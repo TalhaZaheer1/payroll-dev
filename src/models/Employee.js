@@ -7,6 +7,7 @@ const employeeSchema = new mongoose.Schema(
       required: true,
       maxlength: 255,
       trim: true,
+      unique: true, 
     },
     position: {
       type: String,
@@ -14,44 +15,15 @@ const employeeSchema = new mongoose.Schema(
       maxlength: 100,
       trim: true,
     },
-    amRate: {
-      type: Number,
-      required: true,
-      min: 0,
-      default:0
-    },
-    midRate: {
-      type: Number,
-      required: true,
-      min: 0,
-      default:0
-    },
-    pmRate:{
-      type:Number,
-      required:true,
-      min:0,
-      default:0
-    },
-    ltRate: {
-      type: Number,
-      required: true,
-      min: 0,
-      default:0
-    },
-    cashSplitPercent: {
-      type: Number,
-      required: true,
-      min: 0,
-      max: 100,
-    },
-    dayIncrementValue:{
-      type:Number,
-      min:.25
-    }
+    amRate: { type: Number, required: true, min: 0, default: 0 },
+    midRate: { type: Number, required: true, min: 0, default: 0 },
+    pmRate: { type: Number, required: true, min: 0, default: 0 },
+    ltRate: { type: Number, required: true, min: 0, default: 0 },
+    cashSplitPercent: { type: Number, required: true, min: 0, max: 100 },
+    dayIncrementValue: { type: Number, min: 0.25 },
   },
-  {
-    timestamps: true, // adds createdAt and updatedAt
-  }
+  { timestamps: true }
 );
+
 
 module.exports = mongoose.model("Employee", employeeSchema);

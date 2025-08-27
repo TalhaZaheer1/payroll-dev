@@ -133,7 +133,32 @@ async function getTimesheetByPayPeriod(req, res, next) {
     next(error);
   }
 }
+async function deleteTimesheetEntryById(req, res, next) {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ message: "id required" });
 
+    const deleted = await PayrollTimesheetEntryModel.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: "Timesheet entry not found" });
+
+    return res.json({ message: "Timesheet entry deleted", id });
+  } catch (e) {
+    next(e);
+  }
+}
+
+// OPTIONAL: DELETE /timesheet/by-employee/:employeeId/:payPeriodId
+async function deleteTimesheetByEmployeeAndPeriod(req, res, next) {
+  try {
+    const { employeeId, payPeriodId } = req.params;
+    if (!employeeId || !payPeriodId) return res.status(400).json({ message: "employeeId and payPeriodId required" });
+
+    const result = await PayrollTimesheetEntryModel.deleteMany({ employeeId, payPeriod: payPeriodId });
+    return res.json({ message: "Deleted entries", deletedCount: result.deletedCount });
+  } catch (e) {
+    next(e);
+  }
+}
 async function updateTimesheetEntry(req, res, next) {
   const { employeeId, payrollDataKey, fieldName, fieldValue } = req.body;
   console.log({employeeId})
@@ -202,4 +227,6 @@ module.exports = {
   getCurrentPayPeriodTimesheet,
   updateTimesheetEntry,
   getTimesheetByPayPeriod,
+  deleteTimesheetEntryById,
+  deleteTimesheetByEmployeeAndPeriod,
 };
