@@ -58,7 +58,7 @@ function buildPayPeriodDaysPayload(start) {
 
 async function createTimesheetsForEmployees(payPeriodDoc, payPeriodDaysDocs) {
   const employees = await EmployeeModel.find(
-    {},
+    {isActive:true},
     "_id employeeName amRate midRate pmRate ltRate cashSplitPercent",
   );
 
@@ -81,16 +81,12 @@ async function createTimesheetsForEmployees(payPeriodDoc, payPeriodDaysDocs) {
       (employee.pmRate || 0) +
       (employee.ltRate || 0);
 
-    const cash = ((employee.cashSplitPercent || 0) / 100) * payRate;
-
     return {
       payPeriod: payPeriodDoc._id,
       employeeId: employee._id,
       employeeName: employee.employeeName,
       payrollData,
       payRate,
-      cash,
-      payroll: payRate - cash,
     };
   });
 
@@ -152,6 +148,9 @@ async function createNewPayPeriod(req, res, next) {
     await createPayPeriodWithStart(startUtc);
     res.json({ success: true });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "Pay Period Start Date must be unique" });
+    }
     next(error);
   }
 }

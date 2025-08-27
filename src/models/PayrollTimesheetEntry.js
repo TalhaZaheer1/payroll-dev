@@ -34,6 +34,10 @@ const payrollTimesheetEntrySchema = new mongoose.Schema({
     of: dayEntrySchema,
     default: () => new Map(),
   },
+  totalShifts:{
+    type:Number,
+    default:0
+  },
   totalDays: {
     type: Number,
     default: 0,
@@ -44,12 +48,15 @@ const payrollTimesheetEntrySchema = new mongoose.Schema({
   },
   cash: {
     type: Number,
+    default:0
   },
   payroll: {
     type: Number,
+    default:0
   },
   total: {
     type: Number,
+    default:0
   },
   notes: {
     type: String,

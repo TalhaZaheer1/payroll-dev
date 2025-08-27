@@ -21,9 +21,11 @@ const employeeSchema = new mongoose.Schema(
     ltRate: { type: Number, required: true, min: 0, default: 0 },
     cashSplitPercent: { type: Number, required: true, min: 0, max: 100 },
     dayIncrementValue: { type: Number, min: 0.25 },
+    isActive:{type:Boolean,default:true}
   },
   { timestamps: true }
 );
 
+employeeSchema.set("autoIndex", true);
 
 module.exports = mongoose.model("Employee", employeeSchema);

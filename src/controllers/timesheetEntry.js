@@ -67,7 +67,7 @@ function roundTo(num, decimals = 2) {
 }
 
 function recomputeTotals(timesheetEntry, employee) {
-  const INCREMENT_CODES = new Set(["P", "E", "S"]);
+  const INCREMENT_CODES = new Set(["P"]);
   const SHIFTS = ["am", "mid", "pm", "lt"];
 
   // Ensure increment value exists and is numeric
@@ -81,6 +81,7 @@ function recomputeTotals(timesheetEntry, employee) {
   }
 
   let totalUnits = 0;
+  let totalShifts = 0;
 
   // payrollData is a Map<string, DayEntry>
   timesheetEntry.payrollData.forEach((dayEntry) => {
@@ -92,6 +93,7 @@ function recomputeTotals(timesheetEntry, employee) {
     }
     if (matches > 0) {
       totalUnits += matches * inc;
+      totalShifts += matches;
     }
   });
 
@@ -101,10 +103,13 @@ function recomputeTotals(timesheetEntry, employee) {
   if (fraction > 0.70) totalUnits = roundTo(totalUnits,1);
 
   timesheetEntry.totalDays = totalUnits;
+  timesheetEntry.totalShifts = totalShifts;
 
   // Recompute monetary totals from payRate
   timesheetEntry.total =
     timesheetEntry.totalDays * (timesheetEntry.payRate || 0);
+  timesheetEntry.cash = employee.cashSplitPercent / 100 * timesheetEntry.total;
+  timesheetEntry.payroll = timesheetEntry.total - timesheetEntry.cash;
 }
 
 async function getCurrentPayPeriodTimesheet(req, res, next) {
@@ -179,6 +184,9 @@ async function updateTimesheetEntry(req, res, next) {
     }).populate("employeeId");
 
     const employee = timesheetEntry.employeeId;
+    if(!employee)
+      throw new Error("Employee does not exist. Cannot modify this record")
+
 
     console.log({ rate: employee[`${fieldName}Rate`] });
 
@@ -196,6 +204,7 @@ async function updateTimesheetEntry(req, res, next) {
 
     await createAuditTrail(timesheetEntry, fieldName, fieldValue);
     const updatedTimesheetEntry = await timesheetEntry.save();
+    updatedTimesheetEntry.employeeId = updatedTimesheetEntry.employeeId._id;
     res.json({ updatedTimesheetEntry });
   } catch (error) {
     next(error);

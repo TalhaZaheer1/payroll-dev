@@ -54,6 +54,9 @@ async function updateTimesheetEntry(employee) {
     payPeriod: currentPayPeriodId,
   });
 
+  if(!timesheetEntry)
+    return;
+
   const payload = {
     payRate,
     cash,
@@ -85,7 +88,7 @@ async function getAllEmployees(req, res, next) {
 // POST /employee/add
 async function createEmployee(req, res, next) {
   try {
-    const allowed = ["employeeName", "position", "amRate", "midRate", "pmRate", "ltRate", "cashSplitPercent"];
+    const allowed = ["employeeName", "position", "amRate", "midRate", "pmRate", "ltRate", "cashSplitPercent", "isActive"];
     const data = pick(req.body, allowed);
 
     // Coerce numerics
@@ -112,6 +115,7 @@ async function createEmployee(req, res, next) {
     }
 
     const created = await EmployeeModel.create(data);
+    if(created.isActive)
     await createTimesheetEntry(created);
     return res.status(201).json(created);
   } catch (error) {
@@ -194,6 +198,7 @@ async function createEmployeesBulk(req, res, next) {
     }
 
     for await (const doc of inserted) {
+      if(doc.isActive)
       await createTimesheetEntry(doc);
     }
 
@@ -221,7 +226,7 @@ async function updateEmployee(req, res, next) {
   try {
     const { id } = req.params;
 
-    const allowed = ["employeeName", "position", "amRate", "midRate", "pmRate", "ltRate", "cashSplitPercent"];
+    const allowed = ["employeeName", "position", "amRate", "midRate", "pmRate", "ltRate", "cashSplitPercent","isActive"];
     const update = pick(req.body, allowed);
 
     if (update.amRate !== undefined) update.amRate = toNum(update.amRate);
@@ -246,7 +251,8 @@ async function updateEmployee(req, res, next) {
 
     const updated = await EmployeeModel.findByIdAndUpdate(id, update, { new: true, runValidators: true });
     if (!updated) return res.status(404).json({ message: "Employee not found" });
-
+    
+    if(updated.isActive)
     await updateTimesheetEntry(updated);
 
     return res.json({ message: "Employee updated successfully", employee: updated });
@@ -274,7 +280,7 @@ async function deleteEmployee(req, res, next) {
     if (!deleted) return res.status(404).json({ message: "Employee not found" });
 
     // remove related timesheet entries
-    await PayrollTimesheetEntryModel.deleteMany({ $or: [{ employeeId: id }, { employee: id }] });
+    // await PayrollTimesheetEntryModel.deleteMany({ $or: [{ employeeId: id }, { employee: id }] });
 
     return res.json({ message: "Employee deleted successfully", employeeId: id });
   } catch (error) {
