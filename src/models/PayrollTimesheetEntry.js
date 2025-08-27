@@ -15,16 +15,45 @@ const dayEntrySchema = new mongoose.Schema(
 );
 
 const payrollTimesheetEntrySchema = new mongoose.Schema({
-  payPeriod: { type: mongoose.Types.ObjectId, ref: "PayPeriod", index: true },
-  employeeName: { type: String, required: true },
-  employeeId: { type: mongoose.Types.ObjectId, ref: "Employee", required: true },
-  payrollData: { type: Map, of: dayEntrySchema, default: () => new Map() },
-  totalDays: { type: Number, default: 0 },
-  payRate: { type: Number, required: true },
-  cash: { type: Number },
-  payroll: { type: Number },
-  total: { type: Number },
-  notes: { type: String },
-});
+ payPeriod: {
+    type: mongoose.Types.ObjectId,
+    ref: "PayPeriod",
+    index: true,
+  },
+  employeeName: {
+    type: String,
+    required:true
+  },
+  employeeId:{
+    type:mongoose.Types.ObjectId,
+    ref:"Employee",
+    required:true
+  },
+  payrollData: {
+    type: Map,
+    of: dayEntrySchema,
+    default: () => new Map(),
+  },
+  totalDays: {
+    type: Number,
+    default: 0,
+  },
+  payRate: {
+    type: Number,
+    required: true,
+  },
+  cash: {
+    type: Number,
+  },
+  payroll: {
+    type: Number,
+  },
+  total: {
+    type: Number,
+  },
+  notes: {
+    type: String,
+  },
+},{timestamps:true});
 
 module.exports = mongoose.model("PayrollTimesheetEntry", payrollTimesheetEntrySchema);

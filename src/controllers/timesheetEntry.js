@@ -127,7 +127,7 @@ async function getTimesheetByPayPeriod(req, res, next) {
     if (!payPeriodId) throw new Error("Pay Period ID is required");
     const timesheetEntries = await PayrollTimesheetEntryModel.find({
       payPeriod: payPeriodId,
-    })
+    }).sort({_id:1});
     res.json({ timesheetEntries });
   } catch (error) {
     next(error);
@@ -195,8 +195,8 @@ async function updateTimesheetEntry(req, res, next) {
     recomputeTotals(timesheetEntry, employee);
 
     await createAuditTrail(timesheetEntry, fieldName, fieldValue);
-    await timesheetEntry.save();
-    res.json({ success: true });
+    const updatedTimesheetEntry = await timesheetEntry.save();
+    res.json({ updatedTimesheetEntry });
   } catch (error) {
     next(error);
   }
