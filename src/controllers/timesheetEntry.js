@@ -1,6 +1,7 @@
 const PayrollTimesheetEntryModel = require("../models/PayrollTimesheetEntry");
 const GlobalsModel = require("../models/Globals");
 const AuditTrailEntryModel = require("../models/AuditTrailEntry");
+const EmployeeModel = require("../models/Employee")
 
 // function parseTimesheetEntry(timesheetEntry) {
 //   const result = {};
@@ -97,10 +98,9 @@ function recomputeTotals(timesheetEntry, employee) {
     }
   });
 
-
   // Snap near-integers (e.g., 0.76..0.99) up to whole day
   const fraction = totalUnits % 1;
-  if (fraction > 0.70) totalUnits = roundTo(totalUnits,1);
+  if (fraction > 0.7) totalUnits = roundTo(totalUnits, 1);
 
   timesheetEntry.totalDays = totalUnits;
   timesheetEntry.totalShifts = totalShifts;
@@ -108,7 +108,8 @@ function recomputeTotals(timesheetEntry, employee) {
   // Recompute monetary totals from payRate
   timesheetEntry.total =
     timesheetEntry.totalDays * (timesheetEntry.payRate || 0);
-  timesheetEntry.cash = employee.cashSplitPercent / 100 * timesheetEntry.total;
+  timesheetEntry.cash =
+    (employee.cashSplitPercent / 100) * timesheetEntry.total;
   timesheetEntry.payroll = timesheetEntry.total - timesheetEntry.cash;
 }
 
@@ -118,7 +119,7 @@ async function getCurrentPayPeriodTimesheet(req, res, next) {
     const currentPayPeriodId = globals[0].currentPayPeriod;
     const currentTimesheetEntries = await PayrollTimesheetEntryModel.find({
       payPeriod: currentPayPeriodId,
-    })
+    });
 
     res.json({ timesheetEntries: currentTimesheetEntries });
   } catch (error) {
@@ -128,23 +129,81 @@ async function getCurrentPayPeriodTimesheet(req, res, next) {
 
 async function getTimesheetByPayPeriod(req, res, next) {
   const payPeriodId = req.params.payPeriodId;
+
   try {
-    if (!payPeriodId) throw new Error("Pay Period ID is required");
-    const timesheetEntries = await PayrollTimesheetEntryModel.find({
-      payPeriod: payPeriodId,
-    }).sort({_id:1});
-    res.json({ timesheetEntries });
+    if (!payPeriodId) return res.status(400).json({ message: "Pay Period ID is required" });
+
+    // 1) Get entries for this pay period (keep a stable base order)
+    const entries = await PayrollTimesheetEntryModel
+      .find({ payPeriod: payPeriodId })
+      .sort({ _id: 1 })
+      .lean();
+
+    // 2) Fetch employee docs to know which entries are Drivers and who their Aid is
+    const empIds = entries.map(e => e.employeeId).filter(Boolean);
+    const employees = await EmployeeModel
+      .find({ _id: { $in: empIds } }, "_id position aid")
+      .lean();
+
+    // 3) Quick lookup maps
+    const empById = new Map(employees.map(e => [String(e._id), e]));
+    const entryByEmpId = new Map(entries.map(e => [String(e.employeeId), e]));
+
+    // 4) Build ordered list: Driver -> (its Aid if present), then leftovers
+    const visited = new Set(); // by employeeId string
+    const ordered = [];
+
+    // First pass: place Drivers and their Aids (keep original driver order)
+    for (const entry of entries) {
+      const empId = String(entry.employeeId);
+      if (visited.has(empId)) continue;
+
+      // Prefer schema position, fallback to entry field
+      const emp = empById.get(empId);
+      const isDriver =
+        (entry.employeePosition === "Driver") ||
+        (emp && emp.position === "Driver");
+
+      if (isDriver) {
+        // Push driver
+        ordered.push(entry);
+        visited.add(empId);
+
+        // If driver has an aid and that aid has an entry, place aid right after
+        const aidId = emp?.aid ? String(emp.aid) : null;
+        if (aidId) {
+          const aidEntry = entryByEmpId.get(aidId);
+          if (aidEntry && !visited.has(aidId)) {
+            ordered.push(aidEntry);
+            visited.add(aidId);
+          }
+        }
+      }
+    }
+
+    // Second pass: append any entries not yet added (standalone Aids / others)
+    for (const entry of entries) {
+      const empId = String(entry.employeeId);
+      if (!visited.has(empId)) {
+        ordered.push(entry);
+        visited.add(empId);
+      }
+    }
+
+    return res.json({ timesheetEntries: ordered });
   } catch (error) {
     next(error);
   }
 }
+
 async function deleteTimesheetEntryById(req, res, next) {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ message: "id required" });
 
     const deleted = await PayrollTimesheetEntryModel.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: "Timesheet entry not found" });
+    if (!deleted)
+      return res.status(404).json({ message: "Timesheet entry not found" });
 
     return res.json({ message: "Timesheet entry deleted", id });
   } catch (e) {
@@ -156,17 +215,26 @@ async function deleteTimesheetEntryById(req, res, next) {
 async function deleteTimesheetByEmployeeAndPeriod(req, res, next) {
   try {
     const { employeeId, payPeriodId } = req.params;
-    if (!employeeId || !payPeriodId) return res.status(400).json({ message: "employeeId and payPeriodId required" });
+    if (!employeeId || !payPeriodId)
+      return res
+        .status(400)
+        .json({ message: "employeeId and payPeriodId required" });
 
-    const result = await PayrollTimesheetEntryModel.deleteMany({ employeeId, payPeriod: payPeriodId });
-    return res.json({ message: "Deleted entries", deletedCount: result.deletedCount });
+    const result = await PayrollTimesheetEntryModel.deleteMany({
+      employeeId,
+      payPeriod: payPeriodId,
+    });
+    return res.json({
+      message: "Deleted entries",
+      deletedCount: result.deletedCount,
+    });
   } catch (e) {
     next(e);
   }
 }
 async function updateTimesheetEntry(req, res, next) {
   const { employeeId, payrollDataKey, fieldName, fieldValue } = req.body;
-  console.log({employeeId})
+  console.log({ employeeId });
   try {
     const allowedFieldNames = ["am", "pm", "mid", "lt"];
     const allowedFieldValues = ["A", "P", "E", "S", "V"];
@@ -184,9 +252,8 @@ async function updateTimesheetEntry(req, res, next) {
     }).populate("employeeId");
 
     const employee = timesheetEntry.employeeId;
-    if(!employee)
-      throw new Error("Employee does not exist. Cannot modify this record")
-
+    if (!employee)
+      throw new Error("Employee does not exist. Cannot modify this record");
 
     console.log({ rate: employee[`${fieldName}Rate`] });
 

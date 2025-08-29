@@ -28,7 +28,6 @@ app.use(
 );
 
 app.use(express.json());
-
 // Secure headers + CSP (adjust directives for your front-end needs)
 app.use(
   helmet({

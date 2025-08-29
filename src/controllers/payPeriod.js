@@ -59,7 +59,7 @@ function buildPayPeriodDaysPayload(start) {
 async function createTimesheetsForEmployees(payPeriodDoc, payPeriodDaysDocs) {
   const employees = await EmployeeModel.find(
     {isActive:true},
-    "_id employeeName amRate midRate pmRate ltRate cashSplitPercent",
+    "_id employeeName position amRate midRate pmRate ltRate cashSplitPercent",
   );
 
   const payrollTimesheetEntriesPayload = employees.map((employee) => {
@@ -85,6 +85,7 @@ async function createTimesheetsForEmployees(payPeriodDoc, payPeriodDaysDocs) {
       payPeriod: payPeriodDoc._id,
       employeeId: employee._id,
       employeeName: employee.employeeName,
+      employeePosition:employee.position,
       payrollData,
       payRate,
     };

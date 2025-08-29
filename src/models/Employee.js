@@ -11,9 +11,12 @@ const employeeSchema = new mongoose.Schema(
     },
     position: {
       type: String,
+      enum:["Driver","Aid"],
       required: true,
-      maxlength: 100,
-      trim: true,
+    },
+    aid:{
+      type:mongoose.Types.ObjectId,
+      ref:"Employee"
     },
     amRate: { type: Number, required: true, min: 0, default: 0 },
     midRate: { type: Number, required: true, min: 0, default: 0 },

@@ -24,6 +24,10 @@ const payrollTimesheetEntrySchema = new mongoose.Schema({
     type: String,
     required:true
   },
+  employeePosition:{
+    type: String,
+    enum:["Driver","Aid"]
+  },
   employeeId:{
     type:mongoose.Types.ObjectId,
     ref:"Employee",
