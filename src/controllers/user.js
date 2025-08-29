@@ -253,7 +253,7 @@ async function login(req, res, next) {
 
     res.cookie("auth_token", token, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: isProd ? "none" :"lax",
       secure: isProd,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -272,7 +272,7 @@ async function login(req, res, next) {
 async function logout(_req, res) {
   res.clearCookie("auth_token", {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: isProd ? "none" :"lax",
     secure: isProd,
   });
   return res.json({ message: "Logged out" });
